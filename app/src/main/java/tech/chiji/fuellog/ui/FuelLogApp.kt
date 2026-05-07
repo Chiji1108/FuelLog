@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package tech.chiji.fuellog.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -313,7 +315,7 @@ private fun FuelEconomySummary(uiState: FuelLogUiState) {
             Text(
                 text = uiState.latestFuelEconomyKmPerLiter?.let {
                     "直近2回の給油記録から計算しています"
-                } ?: "給油時の総走行距離、給油量、金額を記録してください",
+                } ?: "給油量、金額、給油時の総走行距離を記録してください",
             )
         },
         leadingContent = {
