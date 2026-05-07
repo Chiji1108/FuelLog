@@ -353,7 +353,7 @@ private fun DrivesScreen(
                         if (canEstimateDriveCost) {
                             "実燃費 ${uiState.latestFuelEconomyKmPerLiter?.format(2)} km/L を使って、走行距離から概算します"
                         } else {
-                            "実燃費が出ると、ドライブのガソリン代を記録できます"
+                            "実燃費が出ると、ドライブのガソリン代を計算できます"
                         },
                     )
                 },
