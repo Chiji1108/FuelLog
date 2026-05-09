@@ -1,4 +1,4 @@
-package tech.chiji.fuellog
+package tech.chiji.drivecost
 
 import org.junit.Test
 

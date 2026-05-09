@@ -1,10 +1,10 @@
-package tech.chiji.fuellog.data
+package tech.chiji.drivecost.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlin.math.roundToInt
 
-class FuelLogRepository(
-    private val dao: FuelLogDao,
+class DriveCostRepository(
+    private val dao: DriveCostDao,
 ) {
     val fillUps: Flow<List<FillUpEntity>> = dao.observeFillUps()
     val drives: Flow<List<DriveEntity>> = dao.observeDrives()

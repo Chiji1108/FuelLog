@@ -1,6 +1,6 @@
 @file:Suppress("AssignedValueIsNeverRead")
 
-package tech.chiji.fuellog.ui
+package tech.chiji.drivecost.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,23 +50,23 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import kotlinx.serialization.Serializable
-import tech.chiji.fuellog.data.DriveEntity
-import tech.chiji.fuellog.data.FillUpEntity
-import tech.chiji.fuellog.ui.theme.FuelLogTheme
+import tech.chiji.drivecost.data.DriveEntity
+import tech.chiji.drivecost.data.FillUpEntity
+import tech.chiji.drivecost.ui.theme.DriveCostTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Serializable
-private sealed interface FuelLogDestination : NavKey {
+private sealed interface DriveCostDestination : NavKey {
     @Serializable
-    data object FillUps : FuelLogDestination
+    data object FillUps : DriveCostDestination
 
     @Serializable
-    data object Drives : FuelLogDestination
+    data object Drives : DriveCostDestination
 }
 
-private enum class FuelLogDialog {
+private enum class DriveCostDialog {
     FillUp,
     FillUpDetail,
     DriveStart,
@@ -75,12 +75,12 @@ private enum class FuelLogDialog {
 }
 
 @Composable
-fun FuelLogRoute(
-    viewModel: FuelLogViewModel = viewModel(),
+fun DriveCostRoute(
+    viewModel: DriveCostViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    FuelLogApp(
+    DriveCostApp(
         uiState = uiState,
         onAddFillUp = viewModel::addFillUp,
         onStartDrive = viewModel::startDrive,
@@ -92,8 +92,8 @@ fun FuelLogRoute(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FuelLogApp(
-    uiState: FuelLogUiState,
+fun DriveCostApp(
+    uiState: DriveCostUiState,
     onAddFillUp: (Double, Double, Int) -> Unit,
     onStartDrive: (Double) -> Unit,
     onCompleteDrive: (Long, Double) -> Unit,
@@ -101,10 +101,10 @@ fun FuelLogApp(
     onDeleteDrive: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val backStack = rememberNavBackStack(FuelLogDestination.FillUps)
-    val currentDestination = backStack.lastOrNull() ?: FuelLogDestination.FillUps
+    val backStack = rememberNavBackStack(DriveCostDestination.FillUps)
+    val currentDestination = backStack.lastOrNull() ?: DriveCostDestination.FillUps
     val canEstimateDriveCost = uiState.latestFuelEconomyKmPerLiter != null && uiState.latestYenPerLiter != null
-    var dialog by rememberSaveable { mutableStateOf<FuelLogDialog?>(null) }
+    var dialog by rememberSaveable { mutableStateOf<DriveCostDialog?>(null) }
     var selectedFillUpId by rememberSaveable { mutableStateOf<Long?>(null) }
     var completingDriveId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedDriveId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -113,25 +113,25 @@ fun FuelLogApp(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("FuelLog") },
+                title = { Text("DriveCost") },
             )
         },
         floatingActionButton = {
-            if (currentDestination != FuelLogDestination.Drives || canEstimateDriveCost) {
+            if (currentDestination != DriveCostDestination.Drives || canEstimateDriveCost) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         dialog = when (currentDestination) {
-                            FuelLogDestination.FillUps -> FuelLogDialog.FillUp
-                            FuelLogDestination.Drives -> FuelLogDialog.DriveStart
-                            else -> FuelLogDialog.FillUp
+                            DriveCostDestination.FillUps -> DriveCostDialog.FillUp
+                            DriveCostDestination.Drives -> DriveCostDialog.DriveStart
+                            else -> DriveCostDialog.FillUp
                         }
                     },
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
                     text = {
                         Text(
                             when (currentDestination) {
-                                FuelLogDestination.FillUps -> "給油を記録"
-                                FuelLogDestination.Drives -> "ドライブ開始"
+                                DriveCostDestination.FillUps -> "給油を記録"
+                                DriveCostDestination.Drives -> "ドライブ開始"
                                 else -> "記録"
                             },
                         )
@@ -142,11 +142,11 @@ fun FuelLogApp(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = currentDestination == FuelLogDestination.FillUps,
-                    onClick = { backStack.replaceWith(FuelLogDestination.FillUps) },
+                    selected = currentDestination == DriveCostDestination.FillUps,
+                    onClick = { backStack.replaceWith(DriveCostDestination.FillUps) },
                     icon = {
                         Icon(
-                            imageVector = if (currentDestination == FuelLogDestination.FillUps) {
+                            imageVector = if (currentDestination == DriveCostDestination.FillUps) {
                                 Icons.Filled.LocalGasStation
                             } else {
                                 Icons.Outlined.LocalGasStation
@@ -157,11 +157,11 @@ fun FuelLogApp(
                     label = { Text("給油") },
                 )
                 NavigationBarItem(
-                    selected = currentDestination == FuelLogDestination.Drives,
-                    onClick = { backStack.replaceWith(FuelLogDestination.Drives) },
+                    selected = currentDestination == DriveCostDestination.Drives,
+                    onClick = { backStack.replaceWith(DriveCostDestination.Drives) },
                     icon = {
                         Icon(
-                            imageVector = if (currentDestination == FuelLogDestination.Drives) {
+                            imageVector = if (currentDestination == DriveCostDestination.Drives) {
                                 Icons.Filled.DirectionsCar
                             } else {
                                 Icons.Outlined.DirectionsCar
@@ -178,26 +178,26 @@ fun FuelLogApp(
             backStack = backStack,
             modifier = Modifier.padding(padding),
             entryProvider = entryProvider {
-                entry(FuelLogDestination.FillUps) {
+                entry(DriveCostDestination.FillUps) {
                     FillUpsScreen(
                         uiState = uiState,
                         onFillUpClick = { fillUpId ->
                             selectedFillUpId = fillUpId
-                            dialog = FuelLogDialog.FillUpDetail
+                            dialog = DriveCostDialog.FillUpDetail
                         },
                     )
                 }
-                entry(FuelLogDestination.Drives) {
+                entry(DriveCostDestination.Drives) {
                     DrivesScreen(
                         uiState = uiState,
                         canEstimateDriveCost = canEstimateDriveCost,
                         onCompleteDriveClick = { driveId ->
                             completingDriveId = driveId
-                            dialog = FuelLogDialog.DriveComplete
+                            dialog = DriveCostDialog.DriveComplete
                         },
                         onDriveClick = { driveId ->
                             selectedDriveId = driveId
-                            dialog = FuelLogDialog.DriveDetail
+                            dialog = DriveCostDialog.DriveDetail
                         },
                     )
                 }
@@ -206,7 +206,7 @@ fun FuelLogApp(
     }
 
     when (dialog) {
-        FuelLogDialog.FillUp -> FillUpDialog(
+        DriveCostDialog.FillUp -> FillUpDialog(
             onDismiss = { dialog = null },
             onSave = { odometerKm, liters, totalYen ->
                 onAddFillUp(odometerKm, liters, totalYen)
@@ -214,7 +214,7 @@ fun FuelLogApp(
             },
         )
 
-        FuelLogDialog.FillUpDetail -> FillUpDetailDialog(
+        DriveCostDialog.FillUpDetail -> FillUpDetailDialog(
             fillUp = selectedFillUpId?.let { id -> uiState.fillUps.firstOrNull { it.id == id } },
             onDismiss = {
                 selectedFillUpId = null
@@ -227,7 +227,7 @@ fun FuelLogApp(
             },
         )
 
-        FuelLogDialog.DriveStart -> DriveStartDialog(
+        DriveCostDialog.DriveStart -> DriveStartDialog(
             onDismiss = { dialog = null },
             onSave = { startOdometerKm ->
                 onStartDrive(startOdometerKm)
@@ -235,7 +235,7 @@ fun FuelLogApp(
             },
         )
 
-        FuelLogDialog.DriveComplete -> DriveCompleteDialog(
+        DriveCostDialog.DriveComplete -> DriveCompleteDialog(
             drive = completingDriveId?.let { id -> uiState.drives.firstOrNull { it.id == id } },
             onDismiss = {
                 completingDriveId = null
@@ -253,7 +253,7 @@ fun FuelLogApp(
             },
         )
 
-        FuelLogDialog.DriveDetail -> DriveDetailDialog(
+        DriveCostDialog.DriveDetail -> DriveDetailDialog(
             drive = selectedDriveId?.let { id -> uiState.drives.firstOrNull { it.id == id } },
             onDismiss = {
                 selectedDriveId = null
@@ -272,7 +272,7 @@ fun FuelLogApp(
 
 @Composable
 private fun FillUpsScreen(
-    uiState: FuelLogUiState,
+    uiState: DriveCostUiState,
     onFillUpClick: (Long) -> Unit,
 ) {
     LazyColumn(
@@ -301,7 +301,7 @@ private fun FillUpsScreen(
 }
 
 @Composable
-private fun FuelEconomySummary(uiState: FuelLogUiState) {
+private fun FuelEconomySummary(uiState: DriveCostUiState) {
     ListItem(
         headlineContent = {
             Text(
@@ -327,7 +327,7 @@ private fun FuelEconomySummary(uiState: FuelLogUiState) {
 
 @Composable
 private fun DrivesScreen(
-    uiState: FuelLogUiState,
+    uiState: DriveCostUiState,
     canEstimateDriveCost: Boolean,
     onCompleteDriveClick: (Long) -> Unit,
     onDriveClick: (Long) -> Unit,
@@ -691,10 +691,10 @@ private val recordedAtFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern
 
 @Preview(showBackground = true)
 @Composable
-private fun FuelLogAppPreview() {
-    FuelLogTheme {
-        FuelLogApp(
-            uiState = FuelLogUiState(
+private fun DriveCostAppPreview() {
+    DriveCostTheme {
+        DriveCostApp(
+            uiState = DriveCostUiState(
                 fillUps = listOf(
                     FillUpEntity(id = 2, odometerKm = 12_420.0, liters = 32.4, totalYen = 5_508),
                     FillUpEntity(id = 1, odometerKm = 12_050.0, liters = 30.8, totalYen = 5_236),
@@ -732,10 +732,10 @@ private fun FuelLogAppPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun EmptyFuelLogAppPreview() {
-    FuelLogTheme {
-        FuelLogApp(
-            uiState = FuelLogUiState(),
+private fun EmptyDriveCostAppPreview() {
+    DriveCostTheme {
+        DriveCostApp(
+            uiState = DriveCostUiState(),
             onAddFillUp = { _, _, _ -> },
             onStartDrive = {},
             onCompleteDrive = { _, _ -> },

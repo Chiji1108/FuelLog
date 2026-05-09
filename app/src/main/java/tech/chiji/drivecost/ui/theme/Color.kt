@@ -1,4 +1,4 @@
-package tech.chiji.fuellog.ui.theme
+package tech.chiji.drivecost.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

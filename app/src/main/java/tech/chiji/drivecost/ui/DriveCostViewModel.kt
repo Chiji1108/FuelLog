@@ -1,4 +1,4 @@
-package tech.chiji.fuellog.ui
+package tech.chiji.drivecost.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -8,24 +8,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import tech.chiji.fuellog.data.DriveEntity
-import tech.chiji.fuellog.data.FillUpEntity
-import tech.chiji.fuellog.data.FuelLogDatabase
-import tech.chiji.fuellog.data.FuelLogRepository
+import tech.chiji.drivecost.data.DriveEntity
+import tech.chiji.drivecost.data.FillUpEntity
+import tech.chiji.drivecost.data.DriveCostDatabase
+import tech.chiji.drivecost.data.DriveCostRepository
 
-data class FuelLogUiState(
+data class DriveCostUiState(
     val fillUps: List<FillUpEntity> = emptyList(),
     val drives: List<DriveEntity> = emptyList(),
     val latestFuelEconomyKmPerLiter: Double? = null,
     val latestYenPerLiter: Double? = null,
 )
 
-class FuelLogViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = FuelLogRepository(FuelLogDatabase.get(application).dao())
+class DriveCostViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = DriveCostRepository(DriveCostDatabase.get(application).dao())
 
-    val uiState: StateFlow<FuelLogUiState> =
+    val uiState: StateFlow<DriveCostUiState> =
         combine(repository.fillUps, repository.drives) { fillUps, drives ->
-            FuelLogUiState(
+            DriveCostUiState(
                 fillUps = fillUps,
                 drives = drives,
                 latestFuelEconomyKmPerLiter = fillUps.fuelEconomyKmPerLiter(),
@@ -34,7 +34,7 @@ class FuelLogViewModel(application: Application) : AndroidViewModel(application)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = FuelLogUiState(),
+            initialValue = DriveCostUiState(),
         )
 
     fun addFillUp(odometerKm: Double, liters: Double, totalYen: Int) {

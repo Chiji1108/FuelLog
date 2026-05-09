@@ -6,13 +6,13 @@ plugins {
 }
 
 android {
-    namespace = "tech.chiji.fuellog"
+    namespace = "tech.chiji.drivecost"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "tech.chiji.fuellog"
+        applicationId = "tech.chiji.drivecost"
         minSdk = 36
         targetSdk = 37
         versionCode = 1

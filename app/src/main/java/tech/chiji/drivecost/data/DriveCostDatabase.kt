@@ -1,4 +1,4 @@
-package tech.chiji.fuellog.data
+package tech.chiji.drivecost.data
 
 import android.content.Context
 import androidx.room.Dao
@@ -33,7 +33,7 @@ data class DriveEntity(
 )
 
 @Dao
-interface FuelLogDao {
+interface DriveCostDao {
     @Query("SELECT * FROM fill_ups ORDER BY odometerKm DESC, recordedAtMillis DESC")
     fun observeFillUps(): Flow<List<FillUpEntity>>
 
@@ -78,19 +78,19 @@ interface FuelLogDao {
     version = 3,
     exportSchema = false,
 )
-abstract class FuelLogDatabase : RoomDatabase() {
-    abstract fun dao(): FuelLogDao
+abstract class DriveCostDatabase : RoomDatabase() {
+    abstract fun dao(): DriveCostDao
 
     companion object {
         @Volatile
-        private var instance: FuelLogDatabase? = null
+        private var instance: DriveCostDatabase? = null
 
-        fun get(context: Context): FuelLogDatabase =
+        fun get(context: Context): DriveCostDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
-                    FuelLogDatabase::class.java,
-                    "fuel-log.db",
+                    DriveCostDatabase::class.java,
+                    "drive-cost.db",
                 )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
