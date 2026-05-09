@@ -3,6 +3,7 @@
 package tech.chiji.drivecost.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,18 +32,23 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
@@ -50,12 +56,20 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import kotlinx.serialization.Serializable
+import nl.dionsegijn.konfetti.core.Angle
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.Spread
+import nl.dionsegijn.konfetti.core.emitter.Emitter
 import tech.chiji.drivecost.data.DriveEntity
 import tech.chiji.drivecost.data.FillUpEntity
 import tech.chiji.drivecost.ui.theme.DriveCostTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 @Serializable
 private sealed interface DriveCostDestination : NavKey {
@@ -72,6 +86,21 @@ private enum class DriveCostDialog {
     DriveStart,
     DriveComplete,
     DriveDetail,
+}
+
+private sealed interface CalculationCelebration {
+    val id: Int
+
+    data class FuelEconomy(
+        override val id: Int,
+        val kmPerLiter: Double,
+    ) : CalculationCelebration
+
+    data class DriveCost(
+        override val id: Int,
+        val distanceKm: Double,
+        val estimatedFuelCostYen: Int,
+    ) : CalculationCelebration
 }
 
 @Composable
@@ -108,6 +137,8 @@ fun DriveCostApp(
     var selectedFillUpId by rememberSaveable { mutableStateOf<Long?>(null) }
     var completingDriveId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedDriveId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var celebrationId by remember { mutableStateOf(0) }
+    var celebration by remember { mutableStateOf<CalculationCelebration?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -209,7 +240,18 @@ fun DriveCostApp(
         DriveCostDialog.FillUp -> FillUpDialog(
             onDismiss = { dialog = null },
             onSave = { odometerKm, liters, totalYen ->
+                val fuelEconomy = uiState.fillUps.fuelEconomyAfter(
+                    odometerKm = odometerKm,
+                    liters = liters,
+                    totalYen = totalYen,
+                )
                 onAddFillUp(odometerKm, liters, totalYen)
+                if (fuelEconomy != null) {
+                    celebration = CalculationCelebration.FuelEconomy(
+                        id = ++celebrationId,
+                        kmPerLiter = fuelEconomy,
+                    )
+                }
                 dialog = null
             },
         )
@@ -242,7 +284,28 @@ fun DriveCostApp(
                 dialog = null
             },
             onSave = { driveId, endOdometerKm ->
+                val drive = uiState.drives.firstOrNull { it.id == driveId }
+                val fuelEconomy = uiState.latestFuelEconomyKmPerLiter
+                val yenPerLiter = uiState.latestYenPerLiter
+                val distanceKm = drive?.let { endOdometerKm - it.startOdometerKm }
+                val estimatedFuelCostYen = if (
+                    distanceKm != null &&
+                    distanceKm > 0.0 &&
+                    fuelEconomy != null &&
+                    yenPerLiter != null
+                ) {
+                    (distanceKm / fuelEconomy * yenPerLiter).roundToInt()
+                } else {
+                    null
+                }
                 onCompleteDrive(driveId, endOdometerKm)
+                if (distanceKm != null && estimatedFuelCostYen != null) {
+                    celebration = CalculationCelebration.DriveCost(
+                        id = ++celebrationId,
+                        distanceKm = distanceKm,
+                        estimatedFuelCostYen = estimatedFuelCostYen,
+                    )
+                }
                 completingDriveId = null
                 dialog = null
             },
@@ -267,6 +330,13 @@ fun DriveCostApp(
         )
 
         null -> Unit
+    }
+
+    celebration?.let {
+        CelebrationDialog(
+            celebration = it,
+            onDismiss = { celebration = null },
+        )
     }
 }
 
@@ -623,6 +693,68 @@ private fun DriveDetailDialog(
 }
 
 @Composable
+private fun CelebrationDialog(
+    celebration: CalculationCelebration,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    Text(
+                        text = when (celebration) {
+                            is CalculationCelebration.FuelEconomy -> "実燃費が分かりました"
+                            is CalculationCelebration.DriveCost -> "ドライブ代が分かりました"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    DetailColumn {
+                        when (celebration) {
+                            is CalculationCelebration.FuelEconomy -> {
+                                DetailLine("実燃費", "${celebration.kmPerLiter.format(2)} km/L")
+                                DetailLine("計算基準", "直近2回の給油記録")
+                            }
+
+                            is CalculationCelebration.DriveCost -> {
+                                DetailLine("走行距離", "${celebration.distanceKm.format(1)} km")
+                                DetailLine("概算ガソリン代", celebration.estimatedFuelCostYen.formatYen())
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text("OK")
+                        }
+                    }
+                }
+            }
+            KonfettiView(
+                modifier = Modifier.fillMaxSize(),
+                parties = remember(celebration.id) { celebrationParties() },
+            )
+        }
+    }
+}
+
+@Composable
 private fun DetailColumn(content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         content()
@@ -677,6 +809,58 @@ private fun <T> MutableList<T>.replaceWith(value: T) {
     clear()
     add(value)
 }
+
+private fun List<FillUpEntity>.fuelEconomyAfter(
+    odometerKm: Double,
+    liters: Double,
+    totalYen: Int,
+): Double? =
+    (this + FillUpEntity(
+        odometerKm = odometerKm,
+        liters = liters,
+        totalYen = totalYen,
+        recordedAtMillis = Long.MAX_VALUE,
+    ))
+        .sortedWith(
+            compareByDescending<FillUpEntity> { it.odometerKm }
+                .thenByDescending { it.recordedAtMillis },
+        )
+        .calculateFuelEconomyKmPerLiter()
+
+private fun List<FillUpEntity>.calculateFuelEconomyKmPerLiter(): Double? {
+    if (size < 2) return null
+
+    val latest = this[0]
+    val previous = this[1]
+    val distanceKm = latest.odometerKm - previous.odometerKm
+    if (distanceKm <= 0.0 || latest.liters <= 0.0) return null
+
+    return distanceKm / latest.liters
+}
+
+private fun celebrationParties(): List<Party> =
+    listOf(
+        Party(
+            speed = 12f,
+            maxSpeed = 34f,
+            damping = 0.9f,
+            angle = Angle.RIGHT - 50,
+            spread = Spread.SMALL,
+            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0x7cc6fe, 0x95e06c),
+            emitter = Emitter(duration = 650, TimeUnit.MILLISECONDS).perSecond(120),
+            position = Position.Relative(0.0, 0.68),
+        ),
+        Party(
+            speed = 12f,
+            maxSpeed = 34f,
+            damping = 0.9f,
+            angle = Angle.LEFT + 50,
+            spread = Spread.SMALL,
+            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0x7cc6fe, 0x95e06c),
+            emitter = Emitter(duration = 650, TimeUnit.MILLISECONDS).perSecond(120),
+            position = Position.Relative(1.0, 0.68),
+        ),
+    )
 
 private fun Double.format(digits: Int): String = "%.${digits}f".format(this)
 
